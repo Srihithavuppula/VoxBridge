@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoxBridge — Live Stream Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+    h1   { font-size: 1.6rem; margin-bottom: 0.25rem; color: #fff; }
+    p.sub { color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
+
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card h2 { font-size: 1rem; color: #aaa; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    label { font-size: 0.85rem; color: #888; display: block; margin-bottom: 4px; }
+    select, input { background: #111; border: 1px solid #333; color: #e0e0e0; padding: 0.4rem 0.7rem; border-radius: 6px; font-size: 0.9rem; }
+
+    .btn { padding: 0.6rem 1.4rem; border: none; border-radius: 8px; font-size: 0.95rem; cursor: pointer; font-weight: 500; transition: opacity 0.15s; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-green  { background: #16a34a; color: #fff; }
+    .btn-red    { background: #dc2626; color: #fff; }
+    .btn-blue   { background: #2563eb; color: #fff; }
+
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; padding: 0.3rem 0.8rem; border-radius: 20px; }
+    .status.connected    { background: #14532d; color: #4ade80; }
+    .status.disconnected { background: #2a1a1a; color: #888; }
+    .status.recording    { background: #1e1b4b; color: #818cf8; }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .dot.pulse { animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    #log { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; height: 280px; overflow-y: auto; font-family: monospace; font-size: 0.82rem; }
+    .log-status     { color: #888; }
+    .log-transcript { color: #60a5fa; }
+    .log-translation{ color: #4ade80; }
+    .log-audio      { color: #f59e0b; }
+    .log-error      { color: #f87171; }
+
+    #transcript-box  { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; min-height: 60px; color: #60a5fa; font-size: 1.05rem; }
+    #translation-box { background: #111; border: 1px solid #222; border-radius: 8px; padding: 1rem; min-height: 60px; color: #4ade80; font-size: 1.05rem; }
+
+    audio { width: 100%; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>🔊 VoxBridge — Live Stream Test</h1>
+<p class="sub">Test real-time WebSocket streaming directly in your browser</p>
+
+<!-- Config -->
+<div class="card">
+  <h2>Configuration</h2>
+  <div class="row">
+    <div>
+      <label>Endpoint</label>
+      <select id="endpoint">
+        <option value="stt">STT only — transcript</option>
+        <option value="translate">STT + Translation</option>
+        <option value="pipeline" selected>Full Pipeline — transcript + translation + audio</option>
+      </select>
+    </div>
+    <div>
+      <label>Source Language</label>
+      <select id="sourceLang">
+        <option value="auto" selected>Auto detect</option>
+        <option value="en">English</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="hi">Hindi</option>
+        <option value="ja">Japanese</option>
+        <option value="ar">Arabic</option>
+      </select>
+    </div>
+    <div>
+      <label>Target Language</label>
+      <select id="targetLang">
+        <option value="es" selected>Spanish</option>
+        <option value="en">English</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="hi">Hindi</option>
+        <option value="ja">Japanese</option>
+        <option value="ar">Arabic</option>
+        <option value="te">Telugu</option>
+      </select>
+    </div>
+    <div>
+      <label>Speak output</label>
+      <select id="speak">
+        <option value="true" selected>Yes</option>
+        <option value="false">No</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <button class="btn btn-green" id="connectBtn" onclick="connect()">Connect</button>
+    <button class="btn btn-red"   id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+    <button class="btn btn-blue"  id="recordBtn" onclick="toggleRecording()" disabled>🎤 Start Recording</button>
+    <span class="status disconnected" id="statusBadge"><span class="dot"></span> Disconnected</span>
+  </div>
+</div>
+
+<!-- Live output -->
+<div class="card">
+  <h2>Live Output</h2>
+  <div class="row" style="gap:1.5rem">
+    <div style="flex:1">
+      <label style="margin-bottom:6px;color:#60a5fa">📝 Transcript</label>
+      <div id="transcript-box">Waiting for speech…</div>
+    </div>
+    <div style="flex:1">
+      <label style="margin-bottom:6px;color:#4ade80">🌐 Translation</label>
+      <div id="translation-box">Waiting for translation…</div>
+    </div>
+  </div>
+  <div id="audioSection" style="display:none;margin-top:0.5rem">
+    <label style="color:#f59e0b;margin-bottom:6px">🔊 Synthesised Audio</label>
+    <audio id="audioPlayer" controls></audio>
+  </div>
+</div>
+
+<!-- Log -->
+<div class="card">
+  <h2>Message Log</h2>
+  <div id="log"></div>
+</div>
+
+<script>
+let ws = null;
+let mediaRecorder = null;
+let isRecording = false;
+let audioChunks = [];
+
+const BASE = 'ws://127.0.0.1:8000/api/v1/stream';
+
+function log(msg, cls = 'log-status') {
+  const el = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(text, cls) {
+  const badge = document.getElementById('statusBadge');
+  badge.className = `status ${cls}`;
+  const dot = badge.querySelector('.dot');
+  dot.className = cls === 'recording' ? 'dot pulse' : 'dot';
+  badge.innerHTML = `<span class="dot ${cls === 'recording' ? 'pulse' : ''}"></span> ${text}`;
+}
+
+function connect() {
+  const endpoint   = document.getElementById('endpoint').value;
+  const source     = document.getElementById('sourceLang').value;
+  const target     = document.getElementById('targetLang').value;
+  const speak      = document.getElementById('speak').value;
+
+  let url = `${BASE}/${endpoint}?source_language=${source}&target_language=${target}&speak=${speak}`;
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    log('WebSocket connected to ' + url);
+    setStatus('Connected', 'connected');
+    document.getElementById('connectBtn').disabled    = true;
+    document.getElementById('disconnectBtn').disabled = false;
+    document.getElementById('recordBtn').disabled     = false;
+  };
+
+  ws.onclose = () => {
+    log('WebSocket disconnected');
+    setStatus('Disconnected', 'disconnected');
+    document.getElementById('connectBtn').disabled    = false;
+    document.getElementById('disconnectBtn').disabled = true;
+    document.getElementById('recordBtn').disabled     = true;
+    if (isRecording) stopRecording();
+  };
+
+  ws.onerror = (e) => log('WebSocket error: ' + e, 'log-error');
+
+  ws.onmessage = async (event) => {
+    // Binary = audio bytes
+    if (event.data instanceof Blob) {
+      log(`Received audio (${event.data.size} bytes)`, 'log-audio');
+      const url = URL.createObjectURL(event.data);
+      const player = document.getElementById('audioPlayer');
+      player.src = url;
+      player.play();
+      document.getElementById('audioSection').style.display = 'block';
+      return;
+    }
+
+    // JSON message
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'transcript') {
+        log(`Transcript [${msg.language}]: ${msg.text}`, 'log-transcript');
+        document.getElementById('transcript-box').textContent = msg.text;
+      } else if (msg.type === 'translation') {
+        log(`Translation [${msg.source}→${msg.target}]: ${msg.text}`, 'log-translation');
+        document.getElementById('translation-box').textContent = msg.text;
+      } else if (msg.type === 'error') {
+        log('Error: ' + msg.message, 'log-error');
+      } else if (msg.type === 'status') {
+        log('Status: ' + msg.message);
+      }
+    } catch (e) {
+      log('Raw: ' + event.data);
+    }
+  };
+}
+
+function disconnect() {
+  if (ws) {
+    if (isRecording) stopRecording();
+    ws.send(JSON.stringify({ action: 'stop' }));
+    ws.close();
+    ws = null;
+  }
+}
+
+async function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0 && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(e.data);
+        log(`Sent audio chunk (${e.data.size} bytes)`, 'log-status');
+      }
+    };
+
+    mediaRecorder.start(2000);  // send chunk every 2 seconds
+    isRecording = true;
+    setStatus('Recording…', 'recording');
+    document.getElementById('recordBtn').textContent = '⏹ Stop Recording';
+    log('Microphone recording started');
+  } catch (e) {
+    log('Microphone access denied: ' + e, 'log-error');
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder) {
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(t => t.stop());
+    mediaRecorder = null;
+  }
+  isRecording = false;
+  setStatus('Connected', 'connected');
+  document.getElementById('recordBtn').textContent = '🎤 Start Recording';
+  log('Recording stopped');
+
+  // Flush remaining buffer
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ action: 'flush' }));
+  }
+}
+</script>
+</body>
+</html>
