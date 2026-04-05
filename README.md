@@ -1,23 +1,23 @@
-# VoxBridge 🔊
+# VoxBridge
 ### Multilingual Speech Translation System
 
 A production-ready full-stack application that translates speech across 100+ languages in real time. Upload audio, speak live, or type text — VoxBridge transcribes, translates, and speaks back in your target language.
 
 ---
 
-## ✨ Features
+## Features
 
 | Mode | Description | Endpoint |
 |---|---|---|
-| 🧠 Text → Text | Translate text between 100+ languages | `POST /api/v1/text/translate` |
-| 👂 Audio → Text | Transcribe audio files using Google STT | `POST /api/v1/audio/transcribe` |
-| 🗣️ Text → Audio | Convert text to natural speech via gTTS | `POST /api/v1/audio/synthesize` |
-| 🔊 Audio → Audio | Full pipeline — speak in one language, hear another | `POST /api/v1/audio/pipeline` |
-| ⚡ Live Stream | Real-time mic → transcript → translation via WebSocket | `WS /api/v1/stream/pipeline` |
+|  Text → Text | Translate text between 100+ languages | `POST /api/v1/text/translate` |
+|  Audio → Text | Transcribe audio files using Google STT | `POST /api/v1/audio/transcribe` |
+|  Text → Audio | Convert text to natural speech via gTTS | `POST /api/v1/audio/synthesize` |
+|  Audio → Audio | Full pipeline — speak in one language, hear another | `POST /api/v1/audio/pipeline` |
+|  Live Stream | Real-time mic → transcript → translation via WebSocket | `WS /api/v1/stream/pipeline` |
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Backend
 | Technology | Purpose |
@@ -46,7 +46,7 @@ A production-ready full-stack application that translates speech across 100+ lan
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -75,7 +75,7 @@ A production-ready full-stack application that translates speech across 100+ lan
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - Python 3.10+
@@ -232,7 +232,7 @@ ws.send(audioBlob)
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 VoxBridge/
@@ -274,7 +274,7 @@ VoxBridge/
 
 ---
 
-## 🌐 Deployment
+##  Deployment
 
 ### Backend → Render
 1. Push to GitHub
@@ -291,7 +291,7 @@ VoxBridge/
 
 ---
 
-## 🔒 Free Tier Limits
+##  Free Tier Limits
 
 | Service | Limit |
 |---|---|
@@ -304,13 +304,13 @@ VoxBridge/
 
 ---
 
-## 📝 License
+##  License
 
 MIT License — free to use, modify and distribute.
 
 ---
 
-## 👩‍💻 Author
+##  Author
 
 Built by **Srihitha** as a full-stack ML integration project demonstrating:
 - Production REST API design with FastAPI
