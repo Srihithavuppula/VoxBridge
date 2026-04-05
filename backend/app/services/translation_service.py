@@ -82,13 +82,12 @@ class BaseTranslator(abc.ABC):
         """Returns (translated_text, detected_source_language)."""
 
 
-# ── googletrans provider (FREE) ─────────────────────────────────────────────
+# ── deep-translator provider (FREE, no conflicts) ───────────────────────────
 
 class GoogleTransFreeTranslator(BaseTranslator):
     """
-    Unofficial Google Translate scraper — FREE, no API key needed.
-    Install: pip install googletrans==4.0.0rc1
-    Caveat : may break if Google changes their internal API.
+    Uses deep-translator library — FREE, modern, no dependency conflicts.
+    Install: pip install deep-translator
     """
 
     async def translate(
@@ -98,25 +97,22 @@ class GoogleTransFreeTranslator(BaseTranslator):
         source_language: str = "auto",
     ) -> tuple[str, str]:
         try:
-            from googletrans import Translator  # type: ignore
+            from deep_translator import GoogleTranslator  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
-                "googletrans is not installed. "
-                "Run: pip install googletrans==4.0.0rc1"
+                "deep-translator is not installed. "
+                "Run: pip install deep-translator"
             ) from exc
 
-        translator = Translator()
         src = source_language if source_language != "auto" else "auto"
 
-        # googletrans is sync — run in thread pool to stay async-safe
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: translator.translate(text, dest=target_language, src=src),
+            lambda: GoogleTranslator(source=src, target=target_language).translate(text),
         )
 
-        detected = getattr(result, "src", source_language) or source_language
-        return result.text, detected
+        return result, source_language
 
 
 # ── LibreTranslate provider (FREE) ─────────────────────────────────────────
