@@ -1,5 +1,11 @@
 // frontend/src/api.js
-const BASE = "http://127.0.0.1:8000/api/v1"
+const BASE = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL}/api/v1`
+  : "http://127.0.0.1:8000/api/v1"
+
+const WS_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace("https://", "wss://").replace("http://", "ws://")
+  : "ws://127.0.0.1:8000"
 
 export const LANGUAGES = {
   "auto": "Auto detect",
@@ -74,10 +80,6 @@ export async function runPipeline({ file, target_language, source_language = "au
 
 // ── WebSocket factory ─────────────────────────────────────────────────────────
 export function createStreamWS({ endpoint, source_language, target_language, speak = true }) {
-  const params = new URLSearchParams({
-    source_language,
-    target_language,
-    speak: String(speak),
-  })
-  return new WebSocket(`ws://127.0.0.1:8000/api/v1/stream/${endpoint}?${params}`)
+  const params = new URLSearchParams({ source_language, target_language, speak: String(speak) })
+  return new WebSocket(`${WS_BASE}/api/v1/stream/${endpoint}?${params}`)
 }
