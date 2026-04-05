@@ -1,69 +1,96 @@
 // frontend/src/components/AudioPipeline.jsx
 import { useState, useRef } from "react"
-import { runPipeline, LANG_OPTIONS } from "../api"
+import { LANG_OPTIONS } from "../api"
 
-const BASE = "http://127.0.0.1:8000"
+const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
 
 export default function AudioPipeline() {
-  const [file, setFile] = useState(null)
+  const [file, setFile]         = useState(null)
   const [sourceLang, setSource] = useState("auto")
   const [targetLang, setTarget] = useState("es")
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [drag, setDrag] = useState(false)
-  const [step, setStep] = useState(0) // 0=idle 1=stt 2=translate 3=tts
-  const inputRef = useRef()
-  const audioRef = useRef()
+  const [result, setResult]     = useState(null)
+  const [audioUrl, setAudioUrl] = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState("")
+  const [drag, setDrag]         = useState(false)
+  const [step, setStep]         = useState(0)
+  const inputRef                = useRef()
+  const audioRef                = useRef()
 
   function onFile(f) {
     if (!f) return
-    setFile(f); setResult(null); setError(""); setStep(0)
+    setFile(f); setResult(null); setError(""); setStep(0); setAudioUrl(null)
   }
 
   async function handleRun() {
     if (!file) return
-    setLoading(true); setError(""); setResult(null)
+    setLoading(true); setError(""); setResult(null); setAudioUrl(null)
 
-    // Simulate step progress
     setStep(1)
-    const stepTimer1 = setTimeout(() => setStep(2), 3000)
-    const stepTimer2 = setTimeout(() => setStep(3), 6000)
+    const t1 = setTimeout(() => setStep(2), 3000)
+    const t2 = setTimeout(() => setStep(3), 6000)
 
     try {
-      const data = await runPipeline({
-        file,
-        target_language: targetLang,
-        source_language: sourceLang,
+      const form = new FormData()
+      form.append("file", file)
+      form.append("target_language", targetLang)
+      form.append("source_language", sourceLang)
+
+      const res = await fetch(`${BASE}/api/v1/audio/pipeline`, {
+        method: "POST",
+        body: form,
       })
-      clearTimeout(stepTimer1); clearTimeout(stepTimer2)
-      setStep(0)
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.detail || "Pipeline failed")
+      }
+
+      const data = await res.json()
+      clearTimeout(t1); clearTimeout(t2); setStep(0)
       setResult(data)
-      setTimeout(() => audioRef.current?.play(), 300)
+
+      // Convert base64 audio to playable blob URL
+      if (data.audio_b64) {
+        const binary = atob(data.audio_b64)
+        const bytes  = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+        const blob   = new Blob([bytes], { type: "audio/mpeg" })
+        const url    = URL.createObjectURL(blob)
+        setAudioUrl(url)
+        setTimeout(() => audioRef.current?.play(), 300)
+      }
+
     } catch (e) {
-      clearTimeout(stepTimer1); clearTimeout(stepTimer2)
-      setStep(0)
+      clearTimeout(t1); clearTimeout(t2); setStep(0)
       setError(e.message)
     } finally {
       setLoading(false)
     }
   }
 
+  function handleDownload() {
+    if (!audioUrl) return
+    const a = document.createElement("a")
+    a.href = audioUrl
+    a.download = "translated_speech.mp3"
+    a.click()
+  }
+
   const steps = [
-    { label: "Transcribe", desc: "Whisper STT" },
-    { label: "Translate", desc: "googletrans" },
-    { label: "Synthesise", desc: "gTTS TTS" },
+    { label: "Transcribe", desc: "Speech Recognition" },
+    { label: "Translate",  desc: "deep-translator" },
+    { label: "Synthesise", desc: "gTTS" },
   ]
 
   return (
     <div>
       <div className="section-header">
-        <h2 className="section-title">Audio to Audio</h2>
+        <h2 className="section-title">Audio Pipeline</h2>
         <p className="section-desc">Upload audio in any language — get translated audio back automatically</p>
       </div>
 
       <div className="card">
-        {/* Language selectors */}
         <div className="row" style={{ marginBottom: "1rem" }}>
           <div className="field" style={{ marginBottom: 0 }}>
             <label className="field-label">Source Language</label>
@@ -84,7 +111,6 @@ export default function AudioPipeline() {
           </div>
         </div>
 
-        {/* Upload */}
         <div
           className={`upload-area ${drag ? "drag" : ""}`}
           onClick={() => inputRef.current.click()}
@@ -106,7 +132,6 @@ export default function AudioPipeline() {
           />
         </div>
 
-        {/* Run button */}
         <div style={{ marginTop: "1rem" }}>
           <button
             className="btn btn-primary btn-lg"
@@ -114,10 +139,7 @@ export default function AudioPipeline() {
             disabled={loading || !file}
             style={{ width: "100%" }}
           >
-            {loading
-              ? <><span className="spinner" /> Processing…</>
-              : "▶ Run Pipeline"
-            }
+            {loading ? <><span className="spinner" /> Processing…</> : "▶ Run Pipeline"}
           </button>
         </div>
 
@@ -168,27 +190,18 @@ export default function AudioPipeline() {
           </div>
 
           <label className="field-label">Translated Audio</label>
-          <audio
-            ref={audioRef}
-            src={`${BASE}${result.audio_url}`}
-            controls
-          />
+          <audio ref={audioRef} src={audioUrl} controls style={{ width: "100%", marginTop: "0.5rem" }} />
 
-          <div className="meta-row">
+          <div className="meta-row" style={{ marginTop: "0.75rem" }}>
             <span className="badge badge-green">{result.source_language} → {result.target_language}</span>
             <span className="badge badge-green">Provider: {result.translation_provider}</span>
             <span className="badge badge-green">Duration: {result.duration}s</span>
           </div>
 
           <div style={{ marginTop: "0.75rem" }}>
-            <a
-              href={`${BASE}${result.audio_url}`}
-              download
-              className="btn btn-ghost"
-              style={{ textDecoration: "none" }}
-            >
+            <button className="btn btn-ghost" onClick={handleDownload}>
               ↓ Download Audio
-            </a>
+            </button>
           </div>
         </div>
       )}

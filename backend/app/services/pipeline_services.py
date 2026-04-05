@@ -2,14 +2,14 @@
 """
 Pipeline Service
 -----------------
-Chains STT → Translation → TTS into a single audio-to-audio operation.
+Chains STT → Translation → TTS.
+Returns audio bytes directly instead of saving to disk
+(Render free tier has ephemeral filesystem).
 """
 
 from __future__ import annotations
 
 import logging
-import uuid
-import os
 from pathlib import Path
 
 from app.services.stt_service         import STTService
@@ -17,13 +17,6 @@ from app.services.translation_service import TranslationService
 from app.services.tts_service         import TTSService
 
 logger = logging.getLogger(__name__)
-
-OUTPUT_DIR = Path("tmp_audio")
-OUTPUT_DIR.mkdir(exist_ok=True)
-
-# Full backend URL — set this in .env / Render env variables
-# e.g. https://voxbridge-backend.onrender.com
-BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
 
 class PipelineService:
@@ -39,6 +32,10 @@ class PipelineService:
         tts_provider: str | None = None,
         slow_speech: bool = False,
     ) -> dict:
+        """
+        Returns a dict with all text results + audio_bytes directly.
+        No file saving — works on ephemeral filesystems like Render free tier.
+        """
 
         # ── Step 1: Speech → Text ──────────────────────────────────────────
         logger.info("Pipeline [1/3] STT starting…")
@@ -57,7 +54,7 @@ class PipelineService:
         translation_result = await TranslationService.translate(
             text=transcript,
             target_language=target_language,
-            source_language=detected_lang,   # ✅ use detected lang, not original param
+            source_language=detected_lang,
             provider=translation_provider,
         )
         translated_text = translation_result["translated_text"]
@@ -72,11 +69,7 @@ class PipelineService:
             slow=slow_speech,
             provider=tts_provider,
         )
-
-        file_id  = uuid.uuid4().hex
-        out_path = OUTPUT_DIR / f"{file_id}.mp3"
-        out_path.write_bytes(audio_out)
-        logger.info("Pipeline [3/3] TTS done, saved to %s", out_path)
+        logger.info("Pipeline [3/3] TTS done, %d bytes", len(audio_out))
 
         return {
             "original_transcript":  transcript,
@@ -84,12 +77,6 @@ class PipelineService:
             "source_language":      detected_lang,
             "target_language":      target_language,
             "translation_provider": used_provider,
-            "audio_url":            f"{BASE_URL}/api/v1/audio/download/{file_id}.mp3",  # ✅ full URL
             "duration":             duration,
+            "audio_bytes":          audio_out,   # ← return bytes directly
         }
-
-    @staticmethod
-    def get_output_path(filename: str) -> Path | None:
-        safe_name = Path(filename).name
-        path = OUTPUT_DIR / safe_name
-        return path if path.exists() else None
