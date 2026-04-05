@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = Path("tmp_audio")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+# BASE_URL could be used if you want to prepend a base path for downloads, but here audio_url is hardcoded.
+# BASE_URL = os.getenv("BASE_URL", "")
+BASE_URL = os.getenv("BASE_URL", "")
 
 class PipelineService:
     """
@@ -74,7 +77,7 @@ class PipelineService:
         translation_result = await TranslationService.translate(
             text=transcript,
             target_language=target_language,
-            source_language=detected_lang,
+            source_language=None if source_language == "auto" else source_language,
             provider=translation_provider,
         )
         translated_text   = translation_result["translated_text"]
@@ -102,7 +105,7 @@ class PipelineService:
             "source_language":       detected_lang,
             "target_language":       target_language,
             "translation_provider":  used_provider,
-            "audio_url":             f"/api/v1/audio/download/{file_id}.mp3",
+            "audio_url":             f"{BASE_URL}/api/v1/audio/download/{file_id}.mp3",
             "duration":              duration,
         }
 
