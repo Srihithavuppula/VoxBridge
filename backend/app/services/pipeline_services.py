@@ -19,7 +19,7 @@ from app.services.tts_service         import TTSService
 logger = logging.getLogger(__name__)
 
 
-class PipelineService:
+class PipelineServices:
 
     @classmethod
     async def run(
