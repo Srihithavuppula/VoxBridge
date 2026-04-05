@@ -5,6 +5,11 @@ A production-ready full-stack application that translates speech across 100+ lan
 
 ---
 
+##LiveDemo
+vox-bridge-nu.vercel.app
+
+---
+
 ## Features
 
 | Mode | Description | Endpoint |
