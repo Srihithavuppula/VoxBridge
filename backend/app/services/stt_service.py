@@ -20,6 +20,7 @@ from pathlib import Path
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
+logger.debug("Loaded stt_service.py")  # DEBUG
 
 SUPPORTED_EXTENSIONS = {".mp3", ".wav", ".ogg", ".webm", ".mp4", ".m4a", ".flac"}
 
@@ -84,10 +85,12 @@ class STTService:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
+        logger.debug("Spawning transcription task to thread pool executor...")  # DEBUG
         result = await loop.run_in_executor(
             None,
             lambda: cls._transcribe_sync(audio_bytes, ext, language),
         )
+        logger.debug(f"Transcription result: {result}")  # DEBUG
         return result
 
     @classmethod
@@ -99,21 +102,20 @@ class STTService:
     ) -> dict:
         """Synchronous transcription — runs inside thread pool."""
         try:
-            import speech_recognition as sr  # type: ignore
-        except ImportError as exc:
-            logger.error("SpeechRecognition is not installed.")
-            raise RuntimeError(
-                "SpeechRecognition is not installed. "
-                "Run: pip install SpeechRecognition"
-            ) from exc
+            import speech_recognition as sr
+        except Exception as exc:
+            logger.exception("SpeechRecognition failed to load")  # DEBUG
+            raise RuntimeError(f"SpeechRecognition failed to load: {exc}") from exc
 
         recognizer = sr.Recognizer()
+        logger.debug("SpeechRecognition recognizer created.")  # DEBUG
 
         # Write to temp file
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             tmp.write(audio_bytes)
             tmp.flush()
             tmp_path = tmp.name
+        logger.debug(f"Temporary file written at: {tmp_path}")  # DEBUG
 
         try:
             # Convert non-WAV formats to WAV using pydub
@@ -154,9 +156,9 @@ class STTService:
             }
         except sr.RequestError as exc:
             logger.error(f"Google Speech API error: {exc}")
+
             raise RuntimeError(
-                f"Google Speech API error: {exc}. "
-                "Check your internet connection."
+                "SpeechRecognition API failed (likely network issue on Render)."
             )
         except Exception as exc:
             logger.exception(f"Unexpected error during transcription: {exc}")
@@ -188,6 +190,7 @@ def _convert_to_wav(input_path: str, output_path: str):
         logger.debug(f"Converting {input_path} ({ext}) to WAV at {output_path}")
         audio = AudioSegment.from_file(input_path, format=ext)
         audio.export(output_path, format="wav")
+        logger.debug(f"Successfully converted {input_path} to WAV at {output_path}")  # DEBUG
     except ImportError as exc:
         logger = logging.getLogger(__name__)
         logger.error("pydub is not installed!")
