@@ -33,8 +33,8 @@ export default function AudioTranscribe() {
     <div>
       <div className="section-header">
         <h2 className="section-title">Audio to Text</h2>
-        <p className="section-desc">Upload an audio file and get text using Whisper AI (runs locally)</p>
-      </div>
+        <p className="section-desc">Upload an audio file and get text using Google Speech Recognition</p>   
+           </div>
 
       <div className="card">
         {/* Upload area */}
