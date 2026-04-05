@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from app.models.audio_models        import TranscriptionResponse, SynthesisRequest
 from app.services.stt_service       import STTService, SUPPORTED_EXTENSIONS
 from app.services.tts_service       import TTSService
-from app.services.pipeline_service  import PipelineService
+from app.services.pipeline_services  import PipelineServices
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -128,7 +128,7 @@ async def audio_pipeline(
         raise HTTPException(400, detail=f"File too large. Max is {MAX_UPLOAD_MB} MB.")
 
     try:
-        result = await PipelineService.run(
+        result = await PipelineServices.run(
             audio_bytes=audio_bytes,
             filename=file.filename or "audio.wav",
             target_language=target_language,
